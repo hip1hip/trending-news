@@ -9,10 +9,13 @@ FastAPI 기반 AI/테크 트렌드 다이제스트 백엔드입니다. Hacker Ne
 
 ## 빠른 시작 (Docker)
 
-1. 루트에 `.env` 파일을 만들고 아래를 채웁니다 (`.env.example` 참고).
+1. 루트에 `.env` 파일을 만듭니다: `.env.example`을 복사한 뒤 **반드시** 채웁니다.
 
-   - `DISCORD_WEBHOOK_URL`: Discord Incoming Webhook **전체 URL** (저장소에 넣지 말 것)
-   - `DATABASE_URL`: compose 기본값과 같으면 생략 가능하지만, 앱 컨테이너에는 compose가 주입합니다.
+   - `POSTGRES_PASSWORD`: DB 비밀번호 (추측 불가능하게)
+   - `DATABASE_URL`: 위 비밀번호와 동일하게 URL 안에 반영 (`postgresql+asyncpg://USER:PASSWORD@db:5432/DB`)
+   - `DISCORD_WEBHOOK_URL`: Discord Incoming Webhook 전체 URL
+
+   공개 배포·보안 체크리스트는 [SECURITY.md](SECURITY.md)를 참고하세요.
 
 2. 실행
 
@@ -65,8 +68,9 @@ curl -X POST http://localhost/jobs/run-digest -H "Content-Type: application/json
 
 ## 비밀·키 관리
 
-- `.pem` SSH 키와 Discord 웹훅 URL은 **Git에 커밋하지 마세요** (`.gitignore`에 `*.pem`, `.env` 포함).
-- 웹훅 URL이 유출되면 Discord에서 웹훅을 삭제 후 재발급하세요.
+- `.env`, `*.pem` 은 **Git에 올리지 마세요** (`.gitignore` 처리).
+- `docker-compose.yml`에는 DB 비밀번호를 직접 적지 않습니다. 모두 `.env`에서만 주입합니다.
+- Discord 웹훅 URL이 유출되면 Discord에서 웹훅을 삭제 후 재발급하세요.
 
 ## 백업
 

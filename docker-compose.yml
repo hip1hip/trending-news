@@ -1,15 +1,18 @@
+# 비밀번호·DATABASE_URL 은 .env 에만 두세요. 이 파일에는 기본 자격 증명을 넣지 않습니다.
+# 사용 전: copy .env.example .env 후 값 채우기
+
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: trending
-      POSTGRES_PASSWORD: trending
-      POSTGRES_DB: trending
+      POSTGRES_USER: ${POSTGRES_USER:-trending}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-trending}
       TZ: Asia/Seoul
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trending -d trending"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -18,9 +21,9 @@ services:
   app:
     build: .
     environment:
-      DATABASE_URL: postgresql+asyncpg://trending:trending@db:5432/trending
+      DATABASE_URL: ${DATABASE_URL}
       DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
-      SCHEDULER_TZ: Asia/Seoul
+      SCHEDULER_TZ: ${SCHEDULER_TZ:-Asia/Seoul}
       TZ: Asia/Seoul
     depends_on:
       db:
