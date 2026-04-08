@@ -31,6 +31,8 @@ FastAPI 기반 AI/테크 트렌드 다이제스트 백엔드입니다. Hacker Ne
    - API(nginx 경유): `http://localhost/health`
    - 앱은 네트워크 내부 `app:8000`만 노출하고, 외부는 **nginx 80** 포트만 엽니다.
 
+   **`502 Bad Gateway` 일 때:** `docker compose ps` 로 `app` 이 `Up` 인지 확인합니다. `Restarting` 이면 `docker compose logs app` 으로 DB·`.env`(특히 `DATABASE_URL` 호스트 `db`)를 확인하세요. 그다음 `docker compose up -d --build` 또는 `docker compose restart app nginx` 로 다시 올립니다.
+
 4. EC2 등 서버 배포 시
 
    - 동일하게 저장소와 `.env`를 두고 `docker compose up -d` 실행

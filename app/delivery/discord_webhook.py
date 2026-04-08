@@ -1,4 +1,4 @@
-"""Discord Incoming Webhook 비동기 전송 (긴 요약·다중 임베드·분할 POST)."""
+"""Discord Incoming Webhook 비동기 전송 (항목별 긴 요약·분할 POST)."""
 
 from __future__ import annotations
 
@@ -42,16 +42,12 @@ def build_discord_webhook_payloads(
     run_label: str,
 ) -> list[dict[str, Any]]:
     """
-    전체 요약(최대 4096) + 항목별 임베드(각 설명 최대 4096).
+    전체 요약 임베드는 넣지 않고, 상위 항목만 긴 설명 임베드로 전송합니다.
 
-    한 메시지에 너무 길면 여러 번 webhook POST 로 나눕니다.
+    첫 webhook 에만 짧은 content(루틴·시각)를 붙입니다. DB/API 의 summary_text 는 그대로 유지됩니다.
     """
-    summary_full = (summary_payload["summary"] or "")[:4096]
-    header_embed: dict[str, Any] = {
-        "title": f"트렌드 다이제스트 ({routine_type}) — 전체 요약",
-        "description": summary_full,
-        "color": 0x5865F2,
-    }
+    line_header = f"**트렌드 다이제스트** `{routine_type}`\n{run_label}"
+    line_header = line_header[:2000]
 
     item_embeds: list[dict[str, Any]] = []
     for i, it in enumerate(summary_payload["items"][:3], start=1):
@@ -69,12 +65,19 @@ def build_discord_webhook_payloads(
             }
         )
 
-    all_embeds = [header_embed, *item_embeds]
+    if not item_embeds:
+        return [
+            {
+                "username": "Trend Digest",
+                "content": f"{line_header}\n\n이번 런에 표시할 상위 항목이 없습니다.",
+            }
+        ]
+
     batches: list[list[dict[str, Any]]] = []
     current: list[dict[str, Any]] = []
     total = 0
 
-    for emb in all_embeds:
+    for emb in item_embeds:
         sz = _embed_size(emb)
         if current and total + sz > _DISCORD_EMBED_BATCH_CHAR_BUDGET:
             batches.append(current)
@@ -86,11 +89,11 @@ def build_discord_webhook_payloads(
         batches.append(current)
 
     payloads: list[dict[str, Any]] = []
-    for batch in batches:
-        payloads.append({"username": "Trend Digest", "embeds": batch})
-
-    if payloads and run_label:
-        payloads[-1]["embeds"][-1]["footer"] = {"text": run_label[:2048]}
+    for batch_idx, batch in enumerate(batches):
+        payload: dict[str, Any] = {"username": "Trend Digest", "embeds": batch}
+        if batch_idx == 0:
+            payload["content"] = line_header
+        payloads.append(payload)
 
     return payloads
 
