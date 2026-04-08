@@ -33,11 +33,130 @@ FastAPI 기반 AI/테크 트렌드 다이제스트 백엔드입니다. Hacker Ne
 
    **`502 Bad Gateway` 일 때:** `docker compose ps` 로 `app` 이 `Up` 인지 확인합니다. `Restarting` 이면 `docker compose logs app` 으로 DB·`.env`(특히 `DATABASE_URL` 호스트 `db`)를 확인하세요. 그다음 `docker compose up -d --build` 또는 `docker compose restart app nginx` 로 다시 올립니다.
 
-4. EC2 등 서버 배포 시
+4. EC2 등 원격 서버
 
-   - 동일하게 저장소와 `.env`를 두고 `docker compose up -d` 실행
-   - 호스트·컨테이너 `TZ=Asia/Seoul` (compose에 반영됨)
-   - 보안 그룹에서 **22(SSH), 80(HTTP)** 를 열고, 운영 전에 관리망 제한·HTTPS(443) 적용을 권장합니다.
+   아래 **[EC2 (Ubuntu) 배포](#ec2-ubuntu-배포)** 절차를 따릅니다.
+
+## EC2 (Ubuntu) 배포
+
+서버에 **Docker Engine**과 **Docker Compose 플러그인**만 있으면 됩니다(호스트에 Python/Postgres를 따로 설치할 필요 없음).
+
+### 1) EC2 준비
+
+- **AMI**: Ubuntu 22.04 LTS 등
+- **보안 그룹 인바운드**
+  - **22** / TCP — SSH (가능하면 **본인 공인 IP만** 허용)
+  - **80** / TCP — HTTP(nginx). 운영 전에는 IP 제한이나 나중에 **443 HTTPS**를 권장합니다.
+- **키 페어**: `.pem` 은 로컬에만 두고 `chmod 400 your-key.pem`
+
+SSH 예시:
+
+```bash
+ssh -i /path/to/your-key.pem ubuntu@<EC2_공인_IP>
+```
+
+### 2) Docker 설치 (Ubuntu)
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "${VERSION_CODENAME:-$VERSION_ID}") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo usermod -aG docker ubuntu
+```
+
+`usermod` 후에는 **로그아웃 후 다시 SSH** 해야 `docker` 명령을 `sudo` 없이 씁니다.
+
+### 3) 코드 올리기
+
+한 가지 방법만 쓰면 됩니다.
+
+**A. Git**
+
+```bash
+cd ~
+git clone https://github.com/<계정>/trending-news.git
+cd trending-news
+```
+
+**B. 로컬에서 압축 후 scp**
+
+```bash
+# 로컬 PC에서 (.git 제외 등)
+tar czvf trending-news.tar.gz trending-news
+scp -i your-key.pem trending-news.tar.gz ubuntu@<EC2_IP>:~/
+# 서버에서
+ssh ubuntu@<EC2_IP>
+tar xzvf trending-news.tar.gz && cd trending-news
+```
+
+### 4) `.env` 만들기
+
+서버의 프로젝트 **루트**에 `.env` 를 두고, **Git에 커밋하지 않습니다.**
+
+```bash
+cp .env.example .env
+nano .env   # 또는 vim
+```
+
+**Docker Compose 안에서** DB 호스트 이름은 반드시 **`db`** 여야 합니다.
+
+```env
+DATABASE_URL=postgresql+asyncpg://trending:<비밀번호>@db:5432/trending
+POSTGRES_USER=trending
+POSTGRES_PASSWORD=<위와_동일>
+POSTGRES_DB=trending
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+UPSTAGE_API_KEY=...
+SCHEDULER_TZ=Asia/Seoul
+```
+
+### 5) 기동
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs app --tail 30
+```
+
+### 6) 동작 확인
+
+브라우저 또는 다른 터미널에서:
+
+```bash
+curl -s http://<EC2_공인_IP>/health
+```
+
+`{"status":"ok","database":"ok"}` 형태면 정상입니다. 스케줄은 **서울 기준 매일 10:00** 에 한 번 돌아갑니다.
+
+### 7) 코드/설정 반영·재시작
+
+```bash
+cd ~/trending-news
+git pull   # Git 쓰는 경우
+docker compose up -d --build
+```
+
+`.env` 만 바꾼 경우:
+
+```bash
+docker compose up -d
+```
+
+### 8) 자주 쓰는 명령
+
+```bash
+docker compose logs -f app
+docker compose restart app nginx
+docker compose down          # 컨테이너 중지(볼륨 유지)
+docker compose down -v       # DB 볼륨까지 삭제 — 데이터 초기화
+```
+
+---
 
 ## 로컬 개발 (Postgres 별도)
 
