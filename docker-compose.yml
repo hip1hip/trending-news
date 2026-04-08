@@ -1,13 +1,13 @@
-# 비밀번호·DATABASE_URL 은 .env 에만 두세요. 이 파일에는 기본 자격 증명을 넣지 않습니다.
-# 사용 전: copy .env.example .env 후 값 채우기
+# 비밀번호·DATABASE_URL 은 .env 에만 두세요.
+# ${VAR} 치환은 호스트 환경 변수가 .env 보다 우선합니다.
+# Windows 등에서 DATABASE_URL 이 localhost 로 덮이는 문제를 피하려고 db/app 은 env_file 로 .env 를 직접 주입합니다.
 
 services:
   db:
     image: postgres:16-alpine
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-trending}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-trending}
       TZ: Asia/Seoul
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -20,10 +20,9 @@ services:
 
   app:
     build: .
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
-      SCHEDULER_TZ: ${SCHEDULER_TZ:-Asia/Seoul}
       TZ: Asia/Seoul
     depends_on:
       db:

@@ -23,6 +23,8 @@ FastAPI 기반 AI/테크 트렌드 다이제스트 백엔드입니다. Hacker Ne
    docker compose up -d --build
    ```
 
+   **Windows 참고:** 셸이나 시스템에 `DATABASE_URL` 등이 이미 잡혀 있으면, 예전 방식의 `${DATABASE_URL}` 치환은 `.env`가 아니라 **호스트 값**이 들어가 `localhost`로 붙는 경우가 있습니다. 현재 `docker-compose.yml`은 `db`/`app`에 `env_file: .env`로 **파일 내용을 그대로** 넣도록 되어 있어 이런 충돌을 피합니다.
+
 3. 접속
 
    - API(nginx 경유): `http://localhost/health`
