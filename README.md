@@ -1,6 +1,6 @@
 # Trend Digest MVP
 
-FastAPI 기반 AI/테크 트렌드 다이제스트 백엔드입니다. Hacker News·GitHub(mock) 수집 → 정규화·점수화 → 목 요약 → PostgreSQL 저장 → Discord 웹훅 전송을 수행하며, APScheduler로 **월·수·금 08:00 (`SCHEDULER_TZ`, 기본 `Asia/Seoul`)** 에 자동 실행됩니다.
+FastAPI 기반 AI/테크 트렌드 다이제스트 백엔드입니다. Hacker News·GitHub(mock) 수집 → 정규화·점수화 → 목 요약 → PostgreSQL 저장 → Discord 웹훅 전송을 수행하며, APScheduler로 **`SCHEDULER_TZ`(기본 `Asia/Seoul`) 기준 매일 10:00** 에 자동 실행됩니다.
 
 ## 스택
 

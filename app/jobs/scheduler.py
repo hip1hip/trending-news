@@ -1,4 +1,4 @@
-"""APScheduler: 월·수·금 08:00 (SCHEDULER_TZ, 기본 Asia/Seoul) 다이제스트."""
+"""APScheduler: SCHEDULER_TZ(기본 Asia/Seoul) 기준 매일 10:00 다이제스트."""
 
 from zoneinfo import ZoneInfo
 
@@ -21,13 +21,13 @@ def get_scheduler() -> AsyncIOScheduler:
 
 
 def setup_scheduler() -> None:
-    """크론 트리거 등록 (id 고정으로 중복 방지)."""
+    """매일 지정 시각(기본 10:00, KST) 크론 등록."""
     sched = get_scheduler()
     settings = get_settings()
     tz = ZoneInfo(settings.scheduler_tz)
     sched.add_job(
         run_scheduled_digest_pipeline,
-        CronTrigger(day_of_week="mon,wed,fri", hour=8, minute=0, timezone=tz),
+        CronTrigger(hour=10, minute=0, timezone=tz),
         id="digest_tech_trend",
         kwargs={"routine_type": "tech_trend"},
         replace_existing=True,

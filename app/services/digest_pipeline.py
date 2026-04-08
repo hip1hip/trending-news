@@ -16,7 +16,7 @@ from app.collectors.github_trending import collect_github_trending_mock
 from app.collectors.hacker_news import collect_hacker_news
 from app.core.config import Settings, get_settings
 from app.core.database import AsyncSessionLocal
-from app.delivery.discord_webhook import build_discord_webhook_payload, send_discord_webhook
+from app.delivery.discord_webhook import build_discord_webhook_payloads, send_discord_webhooks
 from app.models.job_run import JobRun
 from app.normalization import compute_duplicate_group_key, hash_url, normalize_title
 from app.ranking import total_importance_score
@@ -259,9 +259,9 @@ async def _run_digest_transaction(
                     )
             raise
 
-        discord_payload = build_discord_webhook_payload(
+        discord_payloads = build_discord_webhook_payloads(
             summary_payload=summary_payload,
             routine_type=routine_type,
             run_label=run_label,
         )
-        await send_discord_webhook(client, settings.discord_webhook_url, discord_payload)
+        await send_discord_webhooks(client, settings.discord_webhook_url, discord_payloads)

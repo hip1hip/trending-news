@@ -34,10 +34,15 @@ def summarize_digest_mock(
     titles = [t[0] for t in ranked]
     head = " · ".join(titles[:3])
     summary = (
-        f"이번 런 주요 토픽(목 요약·LLM 미연동): {head}"
+        f"[목 요약·LLM 미연동] 이번 런에서 상위로 뽑힌 토픽은 다음과 같습니다: {head}. "
+        f"각 항목은 수집 시점의 제목·점수 기반 목록이며, UPSTAGE_API_KEY 를 설정하면 "
+        f"한국어 장문 요약으로 대체됩니다."
     )
     items: list[SummaryItemOut] = []
     for title, url, score in ranked:
-        takeaway = f"[목] 점수 {score:.1f} — 원문 제목: {title[:120]}"
+        takeaway = (
+            f"[목] 우선순위 점수 {score:.1f}. 원문 제목: {title}. "
+            f"원문을 열지 않으면 상세 맥락은 확인할 수 없습니다(LLM 연동 권장)."
+        )
         items.append(SummaryItemOut(title=title, url=url, takeaway=takeaway))
     return SummaryPayload(summary=summary, items=items)

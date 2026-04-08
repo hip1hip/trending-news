@@ -61,30 +61,32 @@ async def summarize_with_upstage(
     for i, (title, url, snippet, score) in enumerate(ranked, start=1):
         lines.append(
             f"{i}. title: {title}\n   url: {url}\n   score: {score:.2f}\n"
-            f"   snippet: {(snippet or '')[:1200]}"
+            f"   snippet: {(snippet or '')[:2500]}"
         )
     block = "\n".join(lines)
 
     system = (
-        "당신은 기술 뉴스 에디터입니다. 입력은 영어 제목·URL·짧은 본문 스니펫입니다. "
-        "반드시 아래 스키마의 JSON만 출력하세요. 마크다운·설명 문장 금지."
+        "당신은 기술·AI 트렌드 에디터입니다. 독자가 원문 링크를 열지 않아도 맥락을 이해할 수 있게 "
+        "한국어로 충분히 길고 구체적으로 쓰세요. 반드시 아래 스키마의 JSON만 출력하세요. "
+        "마크다운 코드펜스·추가 설명 금지."
     )
     schema_hint = """{
-  "summary_ko": "전체 흐름을 2~4문장 한국어로",
+  "summary_ko": "전체 트렌드를 8~15문장(또는 약 700~1500자) 한국어로. 각 기사가 왜 묶였는지·공통 주제·시사점 포함",
   "items": [
     {
       "title_ko": "한국어 제목 (읽기 쉽게)",
-      "summary_ko": "핵심을 2~3문장 한국어로",
+      "summary_ko": "이 기사만 5~12문장(또는 약 400~1200자) 한국어: 배경, 핵심 내용, 왜 중요한지, 누가 관련되는지",
       "url": "원본과 동일한 URL",
       "title_en": "원문 영어 제목 (참고용)"
     }
   ]
 }"""
     user = (
-        f"다음 {len(ranked)}개 기사를 한국어로 요약해 주세요.\n\n"
+        f"다음 {len(ranked)}개 기사를 한국어로 깊게 요약해 주세요. 원문을 읽지 않은 사람도 "
+        f"트렌드를 이해할 수 있을 정도로 상세히 쓰세요.\n\n"
         f"{block}\n\n"
         f"출력 JSON 스키마 예시:\n{schema_hint}\n"
-        "items 배열 길이는 입력 개수와 같아야 합니다. 순서도 동일하게 유지하세요."
+        "items 배열 길이는 입력 개수와 같아야 하고 순서도 동일해야 합니다."
     )
 
     url = f"{base_url.rstrip('/')}/chat/completions"
@@ -101,9 +103,10 @@ async def summarize_with_upstage(
                 {"role": "user", "content": user},
             ],
             "temperature": 0.35,
+            "max_tokens": 8192,
             "response_format": {"type": "json_object"},
         },
-        timeout=120.0,
+        timeout=180.0,
     )
     resp.raise_for_status()
     data = resp.json()
