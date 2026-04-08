@@ -14,6 +14,7 @@ FastAPI 기반 AI/테크 트렌드 다이제스트 백엔드입니다. Hacker Ne
    - `POSTGRES_PASSWORD`: DB 비밀번호 (추측 불가능하게)
    - `DATABASE_URL`: 위 비밀번호와 동일하게 URL 안에 반영 (`postgresql+asyncpg://USER:PASSWORD@db:5432/DB`)
    - `DISCORD_WEBHOOK_URL`: Discord Incoming Webhook 전체 URL
+   - `UPSTAGE_API_KEY`(선택): 설정 시 Upstage **solar-pro3** 로 한국어 요약·항목별 요약 생성. 없으면 목 요약만 사용합니다.
 
    공개 배포·보안 체크리스트는 [SECURITY.md](SECURITY.md)를 참고하세요.
 

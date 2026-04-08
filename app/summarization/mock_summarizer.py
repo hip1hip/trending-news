@@ -33,9 +33,11 @@ def summarize_digest_mock(
         )
     titles = [t[0] for t in ranked]
     head = " · ".join(titles[:3])
-    summary = f"[Tech trend digest] 주요 토픽: {head}."
+    summary = (
+        f"이번 런 주요 토픽(목 요약·LLM 미연동): {head}"
+    )
     items: list[SummaryItemOut] = []
     for title, url, score in ranked:
-        takeaway = f"우선순위 점수 {score:.1f} — {title[:60]}"
+        takeaway = f"[목] 점수 {score:.1f} — 원문 제목: {title[:120]}"
         items.append(SummaryItemOut(title=title, url=url, takeaway=takeaway))
     return SummaryPayload(summary=summary, items=items)
