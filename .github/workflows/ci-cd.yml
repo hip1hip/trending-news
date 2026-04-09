@@ -1,0 +1,55 @@
+# PR·main: CI는 GitHub 호스트. main 푸시 후 배포는 EC2의 self-hosted runner에서 실행(SSH·22 불필요).
+# EC2에 러너 설치 시 레이블: trending-ec2 (README 참고)
+
+name: CI and Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Syntax check (compileall)
+        run: python -m compileall -q app
+
+      - name: Docker build
+        run: docker compose build
+
+  deploy:
+    name: Deploy on EC2 (self-hosted)
+    needs: ci
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.repository.fork == false
+    runs-on: [self-hosted, trending-ec2]
+    concurrency:
+      group: ec2-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Git pull and Docker Compose
+        run: |
+          set -euo pipefail
+          cd ~/trending-news
+          git fetch origin main
+          git reset --hard origin/main
+          docker compose up -d --build

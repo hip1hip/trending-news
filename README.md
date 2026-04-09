@@ -135,11 +135,15 @@ curl -s http://<EC2_공인_IP>/health
 
 ### 7) 코드/설정 반영·재시작
 
+**수동:**
+
 ```bash
 cd ~/trending-news
 git pull   # Git 쓰는 경우
 docker compose up -d --build
 ```
+
+**자동 (GitHub Actions):** `main`에 머지되면 워크플로가 EC2에 SSH로 접속해 위와 동일하게 `git fetch`·`docker compose up -d --build`를 실행합니다. 설정은 아래 **[CI/CD (GitHub Actions)](#cicd-github-actions)** 를 참고하세요.
 
 `.env` 만 바꾼 경우:
 
@@ -155,6 +159,71 @@ docker compose restart app nginx
 docker compose down          # 컨테이너 중지(볼륨 유지)
 docker compose down -v       # DB 볼륨까지 삭제 — 데이터 초기화
 ```
+
+---
+
+## CI/CD (GitHub Actions)
+
+**흐름:** `feat/*` 등에서 작업 → `main`으로 PR → 리뷰 후 머지 → `main`에 푸시될 때 **CI 통과 후** EC2에 자동 배포됩니다. PR에는 **CI만** 돌고, 배포는 **기본 브랜치에 푸시**될 때만 실행됩니다.
+
+### 워크플로가 하는 일
+
+| 단계 | 내용 |
+|------|------|
+| CI (PR + main) | GitHub 호스트에서 `pip install`, `python -m compileall app`, `docker compose build` |
+| CD (main만) | **EC2에 설치한 self-hosted runner**가 같은 머신에서 `~/trending-news`로 이동해 `git fetch` / `reset --hard origin/main` → `docker compose up -d --build` (**SSH로 밖에서 들어오지 않음**, 보안 그룹 22를 GitHub 전체에 열 필요 없음) |
+
+서버의 `.env`는 Git에 없으므로 **`git reset`으로 지워지지 않습니다.** 비밀 값은 계속 서버에만 둡니다.
+
+### EC2에 self-hosted runner 설치 (필수)
+
+배포 job은 `runs-on: [self-hosted, trending-ec2]` 이므로, **한 대의 EC2**에 아래를 한 번 맞춰 주세요.
+
+1. **전제:** 해당 인스턴스에 이미 `~/trending-news` 클론, Docker, `ubuntu` 사용자가 `docker` 그룹에 포함(기존 배포 절차와 동일).
+
+2. GitHub에서 **Settings → Actions → Runners → New self-hosted runner**를 열 때 **OS는 반드시 Linux, Arch x64** 를 고릅니다.  
+   - 화면에 **Windows**(`actions-runner-win-x64`, `config.cmd`, PowerShell)만 보이면 **OS를 Linux로 바꾼 뒤** `actions-runner-linux-x64`, `./config.sh`, `./run.sh` 안내를 사용하세요.  
+   - 워크플로 배포 스크립트는 **bash·`~/trending-news`·Linux Docker** 기준이라, **로컬 Windows PC에 러너를 깔아도 EC2 배포와 맞지 않습니다.** 러너는 **배포 대상인 EC2(Ubuntu) 안**에 두는 것이 맞습니다.
+
+3. Linux 패키지를 EC2에 내려받은 뒤 표시되는 **`config.sh` 명령**을 따릅니다. 실행 시 레이블을 반드시 지정합니다.
+
+   ```bash
+   ./config.sh --url https://github.com/<OWNER>/<REPO> --token <일회용_토큰> --labels trending-ec2
+   ```
+
+4. 서비스로 등록(권장):
+
+   ```bash
+   sudo ./svc.sh install
+   sudo ./svc.sh start
+   ```
+
+   또는 개발용으로만 `./run.sh` 로 포그라운드 실행.
+
+5. 저장소 Runners 목록에 **Idle** 로 보이면 `main` 푸시 시 배포 job이 해당 EC2에서 실행됩니다.
+
+### 공개 저장소에서 self-hosted 경고 문구
+
+GitHub가 띄우는 *“Using self-hosted runners in public repositories is not recommended…”* 는 **일반적인 주의**입니다. 포크에서 온 PR이 악성 워크플로로 러너를 노리는 시나리오를 말합니다.
+
+이 저장소 워크플로는 다음처럼 **위험을 줄이도록** 짜여 있습니다.
+
+- **PR·포크:** CI job만 돌고 **`ubuntu-latest`(GitHub 호스트)** 만 사용합니다.
+- **배포:** `main`에 **푸시(머지)** 될 때만 돌며, 포크 여부가 아닌 **원본 저장소의 `main`** 기준입니다. `main`에 쓰기 권한이 있는 사람만 배포를 트리거할 수 있습니다.
+
+추가로 GitHub는 공개 저장소에서 **포크 PR 워크플로가 self-hosted 러너를 쓰지 못하게** 막는 정책을 두고 있어, 일반적인 포크 PR만으로는 이 레포에 등록한 EC2 러너가 실행되기 어렵습니다. 그래도 **신뢰할 수 없는 워크플로 변경을 `main`에 머지하지 않는 것**이 가장 큰 방어입니다.
+
+**비공개 저장소:** EC2의 `~/trending-news`에서 `git fetch`가 되도록 **Deploy key**(읽기 전용) 또는 **PAT**을 이미 설정해 두어야 합니다. 공개 저장소면 추가 작업 없습니다.
+
+### 예전 SSH 배포용 시크릿
+
+과거 워크플로는 `EC2_HOST` / `EC2_USER` / `EC2_SSH_KEY` 를 썼습니다. **지금은 사용하지 않으므로** Secrets에서 삭제해도 됩니다.
+
+### 보안 그룹 22번
+
+본인·사무실 IP만 SSH 허용한 상태를 유지해도 됩니다. 배포는 **러너가 EC2 안에서** 돌기 때문에 GitHub 호스트 IP와 무관합니다.
+
+워크플로 파일: [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml)
 
 ---
 
